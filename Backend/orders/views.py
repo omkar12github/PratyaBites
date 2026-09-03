@@ -15,7 +15,26 @@ class OrderView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
+    def get(self, request, pk=None):
+
+        if pk is not None:
+
+            try:
+                order = Order.objects.get(
+                    id=pk,
+                    user=request.user
+                )
+            except Order.DoesNotExist:
+                return Response(
+                    {
+                        "error": "Order not found."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = OrderSerializer(order)
+
+            return Response(serializer.data)
 
         orders = Order.objects.filter(
             user=request.user
@@ -27,7 +46,6 @@ class OrderView(APIView):
         )
 
         return Response(serializer.data)
-
 
     def post(self, request):
 
@@ -72,7 +90,6 @@ class OrderView(APIView):
             total_amount = 0
 
             for item in cart_items:
-
                 total_amount += (
                     item.product.price * item.quantity
                 )
@@ -100,7 +117,6 @@ class OrderView(APIView):
                     subtotal=subtotal
                 )
 
-            # Clear cart after successful order
             cart_items.delete()
 
         serializer = OrderSerializer(order)

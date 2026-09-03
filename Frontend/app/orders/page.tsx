@@ -181,7 +181,6 @@ export default function OrdersPage() {
         </div>
 
         {loading && (
-
           <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
 
             <p className="text-gray-500">
@@ -189,15 +188,12 @@ export default function OrdersPage() {
             </p>
 
           </div>
-
         )}
 
         {!loading && error && (
-
           <div className="rounded-2xl bg-red-50 p-5 text-red-600">
             {error}
           </div>
-
         )}
 
         {!loading &&
@@ -226,7 +222,6 @@ export default function OrdersPage() {
               </button>
 
             </div>
-
           )}
 
         {!loading &&
@@ -251,9 +246,16 @@ export default function OrdersPage() {
 
                       <div>
 
-                        <h2 className="text-lg font-bold">
+                        <button
+                          onClick={() =>
+                            router.push(
+                              `/orders/${order.id}`
+                            )
+                          }
+                          className="text-left text-lg font-bold hover:text-orange-600"
+                        >
                           Order #{order.id}
-                        </h2>
+                        </button>
 
                         <p className="mt-1 text-sm text-gray-500">
                           {formatDate(order.created_at)}
@@ -261,7 +263,12 @@ export default function OrdersPage() {
 
                       </div>
 
-                      <span
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/orders/${order.id}`
+                          )
+                        }
                         className={`w-fit rounded-full px-4 py-2 text-sm font-semibold capitalize ${getStatusStyle(
                           order.status
                         )}`}
@@ -270,7 +277,7 @@ export default function OrdersPage() {
                           "_",
                           " "
                         )}
-                      </span>
+                      </button>
 
                     </div>
 
@@ -424,14 +431,27 @@ export default function OrdersPage() {
 
                     </div>
 
+                    <div className="border-t p-5">
+
+                      <button
+                        onClick={() =>
+                          router.push(
+                            `/orders/${order.id}`
+                          )
+                        }
+                        className="w-full rounded-xl bg-orange-600 px-5 py-3 font-semibold text-white transition hover:bg-orange-700"
+                      >
+                        View Order Details →
+                      </button>
+
+                    </div>
+
                   </div>
 
                 );
-
               })}
 
             </div>
-
           )}
 
       </section>
