@@ -12,17 +12,22 @@ class CartView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # GET CART
     def get(self, request):
         cart, created = Cart.objects.get_or_create(
             user=request.user
         )
 
+        unavailable_items = cart.items.filter(
+            product__is_available=False
+        )
+
+        if unavailable_items.exists():
+            unavailable_items.delete()
+
         serializer = CartSerializer(cart)
 
         return Response(serializer.data)
 
-    # ADD PRODUCT
     def post(self, request):
         product_id = request.data.get("product")
         quantity = request.data.get("quantity", 1)
@@ -49,8 +54,7 @@ class CartView(APIView):
 
         try:
             product = Product.objects.get(
-                id=product_id,
-                is_available=True
+                id=product_id
             )
         except Product.DoesNotExist:
             return Response(
@@ -58,9 +62,27 @@ class CartView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        if not product.is_available:
+            return Response(
+                {
+                    "error": (
+                        "This product is currently "
+                        "unavailable."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         cart, created = Cart.objects.get_or_create(
             user=request.user
         )
+
+        unavailable_items = cart.items.filter(
+            product__is_available=False
+        )
+
+        if unavailable_items.exists():
+            unavailable_items.delete()
 
         cart_item, item_created = CartItem.objects.get_or_create(
             cart=cart,
@@ -86,7 +108,6 @@ class CartItemView(APIView):
 
     permission_classes = [IsAuthenticated]
 
-    # UPDATE QUANTITY
     def patch(self, request, item_id):
 
         try:
@@ -98,6 +119,25 @@ class CartItemView(APIView):
             return Response(
                 {"error": "Cart item not found."},
                 status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not cart_item.product.is_available:
+            cart_item.delete()
+
+            cart = Cart.objects.get(
+                user=request.user
+            )
+
+            return Response(
+                {
+                    "error": (
+                        "This product is currently "
+                        "unavailable and was removed "
+                        "from your cart."
+                    ),
+                    "cart": CartSerializer(cart).data
+                },
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         quantity = request.data.get("quantity")
@@ -132,7 +172,6 @@ class CartItemView(APIView):
             CartSerializer(cart).data
         )
 
-    # REMOVE ITEM
     def delete(self, request, item_id):
 
         try:

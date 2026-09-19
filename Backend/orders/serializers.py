@@ -4,7 +4,6 @@ from .models import Order, OrderItem
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-
     product_name = serializers.CharField(
         source="product.name",
         read_only=True
@@ -24,7 +23,6 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-
     items = OrderItemSerializer(
         many=True,
         read_only=True
@@ -46,8 +44,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "total_amount",
             "delivery_address",
             "status",
+            "payment_method",
+            "payment_status",
             "created_at",
-            "updated_at",
         ]
 
         read_only_fields = [
@@ -56,6 +55,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "items",
             "total_amount",
             "status",
+            "payment_method",
+            "payment_status",
             "created_at",
-            "updated_at",
         ]

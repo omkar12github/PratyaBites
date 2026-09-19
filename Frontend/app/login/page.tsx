@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,16 +20,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/accounts/login/",
+      const response = await apiFetch(
+        "/api/accounts/login/",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
-            username: username,
-            password: password,
+            username,
+            password,
           }),
         }
       );
@@ -36,20 +34,30 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Invalid username or password.");
+        setError(
+          data.error ||
+          data.detail ||
+          "Invalid username or password."
+        );
         return;
       }
 
-      // Store JWT tokens
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh);
+      localStorage.setItem(
+        "access_token",
+        data.access
+      );
 
-      // Store user information
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem(
+        "refresh_token",
+        data.refresh
+      );
 
-      // Go to menu after successful login
+      localStorage.setItem(
+        "user",
+        JSON.stringify(data.user)
+      );
+
       router.push("/menu");
-
     } catch (error) {
       console.error(error);
       setError("Unable to connect to server.");
@@ -60,9 +68,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-orange-50 px-4">
-
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-orange-600">
             PratyaBites
@@ -74,8 +80,6 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleLogin}>
-
-          {/* Username */}
           <div className="mb-5">
             <label className="mb-2 block font-medium text-gray-700">
               Username
@@ -84,14 +88,15 @@ export default function LoginPage() {
             <input
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) =>
+                setUsername(e.target.value)
+              }
               placeholder="Enter your username"
               required
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
             />
           </div>
 
-          {/* Password */}
           <div className="mb-5">
             <label className="mb-2 block font-medium text-gray-700">
               Password
@@ -100,21 +105,21 @@ export default function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
               placeholder="Enter your password"
               required
               className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
             />
           </div>
 
-          {/* Error */}
           {error && (
             <div className="mb-5 rounded-lg bg-red-50 p-3 text-sm text-red-600">
               {error}
             </div>
           )}
 
-          {/* Login button */}
           <button
             type="submit"
             disabled={loading}
@@ -122,7 +127,6 @@ export default function LoginPage() {
           >
             {loading ? "Logging in..." : "Login"}
           </button>
-
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
@@ -134,9 +138,7 @@ export default function LoginPage() {
             Register
           </a>
         </p>
-
       </div>
-
     </main>
   );
 }

@@ -1,5 +1,7 @@
 const API_URL = "http://127.0.0.1:8000";
 
+export { API_URL };
+
 export async function apiFetch(
   endpoint: string,
   options: RequestInit = {}
@@ -7,17 +9,28 @@ export async function apiFetch(
   let accessToken = localStorage.getItem("access_token");
 
   const makeRequest = async (token: string | null) => {
+    const headers = new Headers(options.headers);
+
+    const isFormData = options.body instanceof FormData;
+
+    if (isFormData) {
+      headers.delete("Content-Type");
+    } else {
+      headers.set("Content-Type", "application/json");
+    }
+
+    if (token) {
+      headers.set(
+        "Authorization",
+        `Bearer ${token}`
+      );
+    } else {
+      headers.delete("Authorization");
+    }
+
     return fetch(`${API_URL}${endpoint}`, {
       ...options,
-      headers: {
-        ...(options.headers || {}),
-        "Content-Type": "application/json",
-        ...(token
-          ? {
-              Authorization: `Bearer ${token}`,
-            }
-          : {}),
-      },
+      headers,
     });
   };
 
@@ -35,6 +48,7 @@ export async function apiFetch(
     localStorage.removeItem("user");
 
     window.location.href = "/login";
+
     return response;
   }
 
@@ -57,6 +71,7 @@ export async function apiFetch(
     localStorage.removeItem("user");
 
     window.location.href = "/login";
+
     return response;
   }
 

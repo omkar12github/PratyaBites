@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL, apiFetch } from "@/lib/api";
 
 type Category = {
   id: number;
@@ -24,6 +25,18 @@ type User = {
   phone?: string;
 };
 
+function getImageUrl(image: string | null) {
+  if (!image) {
+    return null;
+  }
+
+  if (image.startsWith("http")) {
+    return image;
+  }
+
+  return `${API_URL}${image}`;
+}
+
 export default function MenuPage() {
   const router = useRouter();
 
@@ -31,6 +44,7 @@ export default function MenuPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
   const [addingProduct, setAddingProduct] = useState<number | null>(null);
@@ -40,8 +54,7 @@ export default function MenuPage() {
 
     if (storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error("Unable to read user:", error);
       }
@@ -55,8 +68,8 @@ export default function MenuPage() {
 
         const [categoryResponse, productResponse] =
           await Promise.all([
-            fetch("http://127.0.0.1:8000/api/categories/"),
-            fetch("http://127.0.0.1:8000/api/products/"),
+            fetch(`${API_URL}/api/categories/`),
+            fetch(`${API_URL}/api/products/`),
           ]);
 
         if (!categoryResponse.ok || !productResponse.ok) {
@@ -66,8 +79,17 @@ export default function MenuPage() {
         const categoryData = await categoryResponse.json();
         const productData = await productResponse.json();
 
-        setCategories(categoryData);
-        setProducts(productData);
+        setCategories(
+          Array.isArray(categoryData)
+            ? categoryData
+            : categoryData.results || []
+        );
+
+        setProducts(
+          Array.isArray(productData)
+            ? productData
+            : productData.results || []
+        );
       } catch (error) {
         console.error("Menu loading error:", error);
       } finally {
@@ -77,6 +99,18 @@ export default function MenuPage() {
 
     loadMenu();
   }, []);
+
+  useEffect(() => {
+    if (!cartMessage) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCartMessage("");
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [cartMessage]);
 
   const handleLogout = () => {
     localStorage.removeItem("access_token");
@@ -88,16 +122,32 @@ export default function MenuPage() {
     router.push("/login");
   };
 
-  const filteredProducts =
-    selectedCategory === "All"
-      ? products
-      : products.filter((product) => {
-          const category = categories.find(
-            (cat) => cat.id === product.category
-          );
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-          return category?.name === selectedCategory;
-        });
+    return products.filter((product) => {
+      const category = categories.find(
+        (cat) => cat.id === product.category
+      );
+
+      const matchesCategory =
+        selectedCategory === "All" ||
+        category?.name === selectedCategory;
+
+      const matchesSearch =
+        !query ||
+        product.name.toLowerCase().includes(query) ||
+        product.description.toLowerCase().includes(query) ||
+        category?.name.toLowerCase().includes(query);
+
+      return matchesCategory && matchesSearch;
+    });
+  }, [
+    products,
+    categories,
+    selectedCategory,
+    searchQuery,
+  ]);
 
   const handleAddToCart = async (productId: number) => {
     const token = localStorage.getItem("access_token");
@@ -111,14 +161,10 @@ export default function MenuPage() {
       setAddingProduct(productId);
       setCartMessage("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/cart/",
+      const response = await apiFetch(
+        "/api/cart/",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
           body: JSON.stringify({
             product: productId,
             quantity: 1,
@@ -140,8 +186,6 @@ export default function MenuPage() {
         return;
       }
 
-      console.log("Cart updated:", data);
-
       setCartMessage("Item added to cart! 🛒");
     } catch (error) {
       console.error("Add to cart error:", error);
@@ -157,108 +201,111 @@ export default function MenuPage() {
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
 
-      <nav className="flex items-center justify-between bg-white px-8 py-5 shadow-sm">
+      <nav className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 px-4 py-4 shadow-sm backdrop-blur sm:px-8">
 
-        <div>
-          <h1 className="text-2xl font-bold text-orange-600">
-            PratyaBites
-          </h1>
-
-          <p className="text-xs text-gray-500">
-            Pratya&apos;s Promise, Every Bite.
-          </p>
-        </div>
-
-        <div className="hidden gap-8 md:flex">
-
-          <a
-            href="/"
-            className="hover:text-orange-600"
-          >
-            Home
-          </a>
-
-          <a
-            href="/menu"
-            className="font-semibold text-orange-600"
-          >
-            Menu
-          </a>
-
-          <a
-            href="#"
-            className="hover:text-orange-600"
-          >
-            Offers
-          </a>
-
-          <a
-            href="#"
-            className="hover:text-orange-600"
-          >
-            About
-          </a>
-
-          <a
-            href="#"
-            className="hover:text-orange-600"
-          >
-            Contact
-          </a>
-
-        </div>
-
-        <div className="flex items-center gap-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
 
           <button
-            onClick={() => router.push("/cart")}
-            className="font-medium hover:text-orange-600"
+            onClick={() => router.push("/")}
+            className="text-left"
           >
-            🛒 Cart
+            <h1 className="text-2xl font-bold text-orange-600">
+              PratyaBites
+            </h1>
+
+            <p className="text-xs text-gray-500">
+              Pratya&apos;s Promise, Every Bite.
+            </p>
           </button>
 
-          {user && (
-            <button
-              onClick={() => router.push("/orders")}
-              className="hidden font-medium hover:text-orange-600 sm:block"
+          <div className="hidden gap-8 md:flex">
+
+            <a
+              href="/"
+              className="hover:text-orange-600"
             >
-              📦 My Orders
+              Home
+            </a>
+
+            <a
+              href="/menu"
+              className="font-semibold text-orange-600"
+            >
+              Menu
+            </a>
+
+            <a
+              href="#"
+              className="hover:text-orange-600"
+            >
+              Offers
+            </a>
+
+            <a
+              href="#"
+              className="hover:text-orange-600"
+            >
+              About
+            </a>
+
+            <a
+              href="#"
+              className="hover:text-orange-600"
+            >
+              Contact
+            </a>
+
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-4">
+
+            <button
+              onClick={() => router.push("/cart")}
+              className="rounded-lg px-2 py-2 font-medium hover:bg-orange-50 hover:text-orange-600 sm:px-3"
+            >
+              🛒 <span className="hidden sm:inline">Cart</span>
             </button>
-          )}
 
-          {user ? (
-
-            <div className="flex items-center gap-4">
-
-              <span className="hidden font-medium text-gray-700 sm:block">
-                Hi, {user.username}
-              </span>
-
+            {user && (
               <button
-                onClick={handleLogout}
-                className="rounded-full bg-gray-900 px-5 py-2 text-white hover:bg-gray-800"
+                onClick={() => router.push("/orders")}
+                className="hidden rounded-lg px-3 py-2 font-medium hover:bg-orange-50 hover:text-orange-600 sm:block"
               >
-                Logout
+                📦 My Orders
               </button>
+            )}
 
-            </div>
+            {user ? (
+              <div className="flex items-center gap-2 sm:gap-4">
 
-          ) : (
+                <span className="hidden font-medium text-gray-700 lg:block">
+                  Hi, {user.username}
+                </span>
 
-            <button
-              onClick={() => router.push("/login")}
-              className="rounded-full bg-orange-600 px-5 py-2 text-white hover:bg-orange-700"
-            >
-              Login
-            </button>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800 sm:px-5"
+                >
+                  Logout
+                </button>
 
-          )}
+              </div>
+            ) : (
+              <button
+                onClick={() => router.push("/login")}
+                className="rounded-full bg-orange-600 px-4 py-2 text-sm text-white hover:bg-orange-700 sm:px-5"
+              >
+                Login
+              </button>
+            )}
+
+          </div>
 
         </div>
 
       </nav>
 
-      <section className="bg-orange-50 px-8 py-16 text-center">
+      <section className="bg-orange-50 px-4 py-14 text-center sm:px-8 sm:py-16">
 
         <p className="font-semibold text-orange-600">
           🌱 100% Pure Vegetarian
@@ -274,164 +321,270 @@ export default function MenuPage() {
 
       </section>
 
-      <section className="px-8 py-8">
+      <section className="px-4 pt-8 sm:px-8">
 
-        <div className="mx-auto flex max-w-7xl gap-3 overflow-x-auto pb-2">
+        <div className="mx-auto max-w-7xl">
 
-          <button
-            onClick={() => setSelectedCategory("All")}
-            className={`whitespace-nowrap rounded-full px-5 py-2.5 font-medium transition ${
-              selectedCategory === "All"
-                ? "bg-orange-600 text-white"
-                : "bg-white text-gray-700 shadow-sm hover:bg-orange-50"
-            }`}
-          >
-            All
-          </button>
+          <div className="relative">
 
-          {categories.map((category) => (
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+              🔎
+            </span>
 
-            <button
-              key={category.id}
-              onClick={() =>
-                setSelectedCategory(category.name)
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) =>
+                setSearchQuery(event.target.value)
               }
-              className={`whitespace-nowrap rounded-full px-5 py-2.5 font-medium transition ${
-                selectedCategory === category.name
-                  ? "bg-orange-600 text-white"
-                  : "bg-white text-gray-700 shadow-sm hover:bg-orange-50"
-              }`}
-            >
-              {category.name}
-            </button>
+              placeholder="Search for burger, pizza, sandwich..."
+              className="w-full rounded-2xl border border-gray-200 bg-white py-4 pl-12 pr-12 shadow-sm outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
+            />
 
-          ))}
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-gray-400 hover:text-gray-700"
+              >
+                ×
+              </button>
+            )}
+
+          </div>
 
         </div>
 
       </section>
 
-      <section className="px-8 pb-20">
+      <section className="px-4 py-8 sm:px-8">
 
         <div className="mx-auto max-w-7xl">
 
-          <div className="mb-8">
+          <div className="flex gap-3 overflow-x-auto pb-2">
 
-            <h2 className="text-2xl font-bold">
+            <button
+              onClick={() =>
+                setSelectedCategory("All")
+              }
+              className={`whitespace-nowrap rounded-full px-5 py-2.5 font-medium transition ${
+                selectedCategory === "All"
+                  ? "bg-orange-600 text-white shadow-sm"
+                  : "bg-white text-gray-700 shadow-sm hover:bg-orange-50"
+              }`}
+            >
+              All
+            </button>
 
-              {selectedCategory === "All"
-                ? "All Items"
-                : selectedCategory}
-
-            </h2>
-
-            <p className="text-sm text-gray-500">
-              Choose your favourite food.
-            </p>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() =>
+                  setSelectedCategory(category.name)
+                }
+                className={`whitespace-nowrap rounded-full px-5 py-2.5 font-medium transition ${
+                  selectedCategory === category.name
+                    ? "bg-orange-600 text-white shadow-sm"
+                    : "bg-white text-gray-700 shadow-sm hover:bg-orange-50"
+                }`}
+              >
+                {category.name}
+              </button>
+            ))}
 
           </div>
 
-          {loading && (
+        </div>
 
-            <div className="py-20 text-center">
+      </section>
 
-              <p className="text-gray-500">
-                Loading menu...
+      <section className="px-4 pb-20 sm:px-8">
+
+        <div className="mx-auto max-w-7xl">
+
+          <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+
+            <div>
+
+              <h2 className="text-2xl font-bold">
+                {selectedCategory === "All"
+                  ? "All Items"
+                  : selectedCategory}
+              </h2>
+
+              <p className="text-sm text-gray-500">
+                {searchQuery
+                  ? `Search results for "${searchQuery}"`
+                  : "Choose your favourite food."}
               </p>
 
             </div>
 
-          )}
+            {!loading && (
+              <p className="text-sm font-medium text-gray-500">
+                {filteredProducts.length}{" "}
+                {filteredProducts.length === 1
+                  ? "item"
+                  : "items"}
+              </p>
+            )}
 
-          {!loading && filteredProducts.length > 0 && (
+          </div>
 
+          {loading && (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
 
-              {filteredProducts.map((product) => (
+              {Array.from({ length: 8 }).map(
+                (_, index) => (
+                  <div
+                    key={index}
+                    className="overflow-hidden rounded-2xl bg-white shadow-sm"
+                  >
 
-                <div
-                  key={product.id}
-                  className="overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
-                >
+                    <div className="h-48 animate-pulse bg-gray-200" />
 
-                  <div className="relative flex h-48 items-center justify-center bg-orange-100 text-7xl">
+                    <div className="space-y-3 p-5">
 
-                    {product.image ? (
+                      <div className="h-5 w-3/4 animate-pulse rounded bg-gray-200" />
 
-                      <img
-                        src={`http://127.0.0.1:8000${product.image}`}
-                        alt={product.name}
-                        className="h-full w-full object-cover"
-                      />
+                      <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
 
-                    ) : (
+                      <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
 
-                      "🍕"
-
-                    )}
-
-                  </div>
-
-                  <div className="p-5">
-
-                    <div className="flex items-start justify-between gap-3">
-
-                      <h3 className="font-bold">
-                        {product.name}
-                      </h3>
-
-                      <span className="font-bold text-orange-600">
-                        ₹{product.price}
-                      </span>
+                      <div className="h-10 w-full animate-pulse rounded-xl bg-gray-200" />
 
                     </div>
 
-                    <p className="mt-2 text-sm text-gray-500">
-                      {product.description}
-                    </p>
+                  </div>
+                )
+              )}
 
-                    <div className="mt-4 flex items-center justify-between">
+            </div>
+          )}
 
-                      <span className="text-sm">
-                        ⭐ 4.8
-                      </span>
+          {!loading && filteredProducts.length > 0 && (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+
+              {filteredProducts.map((product) => {
+
+                const imageUrl = getImageUrl(
+                  product.image
+                );
+
+                return (
+                  <div
+                    key={product.id}
+                    className="group overflow-hidden rounded-2xl bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                  >
+
+                    <div className="relative h-52 overflow-hidden bg-orange-100">
+
+                      {imageUrl ? (
+                        <img
+                          src={imageUrl}
+                          alt={product.name}
+                          className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+                            !product.is_available
+                              ? "grayscale"
+                              : ""
+                          }`}
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-7xl">
+                          🍕
+                        </div>
+                      )}
+
+                      <div className="absolute left-3 top-3">
+
+                        {product.is_available ? (
+                          <span className="rounded-full bg-green-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                            Available
+                          </span>
+                        ) : (
+                          <span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                            Unavailable
+                          </span>
+                        )}
+
+                      </div>
+
+                    </div>
+
+                    <div className="p-5">
+
+                      <div className="flex items-start justify-between gap-3">
+
+                        <h3 className="line-clamp-1 font-bold text-gray-900">
+                          {product.name}
+                        </h3>
+
+                        <span className="whitespace-nowrap font-bold text-orange-600">
+                          ₹{product.price}
+                        </span>
+
+                      </div>
+
+                      <p className="mt-2 line-clamp-2 min-h-10 text-sm text-gray-500">
+                        {product.description ||
+                          "Delicious vegetarian food made fresh for you."}
+                      </p>
 
                       <button
                         onClick={() =>
                           handleAddToCart(product.id)
                         }
                         disabled={
+                          !product.is_available ||
                           addingProduct === product.id
                         }
-                        className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`mt-5 w-full rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                          !product.is_available
+                            ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                            : "bg-orange-600 text-white hover:bg-orange-700 active:scale-[0.98]"
+                        }`}
                       >
-                        {addingProduct === product.id
+                        {!product.is_available
+                          ? "Currently Unavailable"
+                          : addingProduct === product.id
                           ? "Adding..."
-                          : "Add to Cart"}
+                          : "Add to Cart 🛒"}
                       </button>
 
                     </div>
 
                   </div>
-
-                </div>
-
-              ))}
+                );
+              })}
 
             </div>
-
           )}
 
           {!loading && filteredProducts.length === 0 && (
+            <div className="rounded-2xl bg-white px-6 py-20 text-center shadow-sm">
 
-            <div className="py-20 text-center">
+              <div className="text-6xl">
+                🔎
+              </div>
 
-              <p className="text-gray-500">
-                No food items found.
+              <h3 className="mt-5 text-xl font-bold">
+                No food items found
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
+                Try another search term or select a different category.
               </p>
 
-            </div>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedCategory("All");
+                }}
+                className="mt-5 rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white hover:bg-orange-700"
+              >
+                View All Items
+              </button>
 
+            </div>
           )}
 
         </div>
@@ -439,11 +592,9 @@ export default function MenuPage() {
       </section>
 
       {cartMessage && (
-
-        <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white shadow-lg">
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white shadow-xl">
           {cartMessage}
         </div>
-
       )}
 
       <footer className="bg-gray-950 px-8 py-10 text-center text-white">

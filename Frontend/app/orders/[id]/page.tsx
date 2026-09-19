@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 type OrderItem = {
   id: number;
@@ -14,61 +15,37 @@ type OrderItem = {
 
 type Order = {
   id: number;
+  user: number;
   username: string;
   items: OrderItem[];
   total_amount: string;
   delivery_address: string;
   status: string;
+  payment_method: string;
+  payment_status: string;
   created_at: string;
 };
 
-const statuses = [
-  "pending",
-  "confirmed",
-  "preparing",
-  "out_for_delivery",
-  "delivered",
-];
-
-const statusLabels: Record<string, string> = {
-  pending: "Order Placed",
-  confirmed: "Confirmed",
-  preparing: "Preparing",
-  out_for_delivery: "Out for Delivery",
-  delivered: "Delivered",
-};
-
 export default function OrderDetailsPage() {
-  const router = useRouter();
   const params = useParams();
-
-  const orderId = params.id;
+  const router = useRouter();
 
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchOrder();
-  }, [orderId]);
+  const orderId = params.id;
 
-  const fetchOrder = async () => {
-    const token = localStorage.getItem("access_token");
-
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
+  const loadOrder = async () => {
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/orders/${orderId}/`,
+      setLoading(true);
+      setError("");
+
+      const response = await apiFetch(
+        `/api/orders/${orderId}/`,
         {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
         }
       );
 
@@ -85,51 +62,121 @@ export default function OrderDetailsPage() {
 
       setOrder(data);
     } catch (error) {
-      console.error("Order details error:", error);
+      console.error("Order loading error:", error);
       setError("Unable to connect to server.");
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleString("en-IN", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
-  };
+  useEffect(() => {
+    if (orderId) {
+      loadOrder();
+    }
+  }, [orderId]);
 
-  const getCurrentStatusIndex = () => {
+  const handleCancelOrder = async () => {
     if (!order) {
-      return -1;
+      return;
     }
 
-    return statuses.indexOf(order.status);
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this order?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setCancelling(true);
+      setError("");
+
+      const response = await apiFetch(
+        `/api/orders/${order.id}/`,
+        {
+          method: "PATCH",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.detail ||
+            data.error ||
+            "Unable to cancel order."
+        );
+        return;
+      }
+
+      setOrder(data.order);
+    } catch (error) {
+      console.error("Cancel order error:", error);
+      setError("Unable to connect to server.");
+    } finally {
+      setCancelling(false);
+    }
   };
+
+  const normalizedStatus =
+    order?.status?.trim().toLowerCase() || "";
+
+  const statusSteps = [
+    {
+      key: "pending",
+      label: "Order Placed",
+    },
+    {
+      key: "confirmed",
+      label: "Confirmed",
+    },
+    {
+      key: "preparing",
+      label: "Preparing",
+    },
+    {
+      key: "out_for_delivery",
+      label: "Out for Delivery",
+    },
+    {
+      key: "delivered",
+      label: "Delivered",
+    },
+  ];
+
+  const statusOrder = [
+    "pending",
+    "confirmed",
+    "preparing",
+    "out_for_delivery",
+    "delivered",
+  ];
+
+  const currentStatusIndex =
+    statusOrder.indexOf(normalizedStatus);
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-orange-50">
-        <div className="mx-auto max-w-5xl px-6 py-16 text-center">
-          <p className="text-gray-500">
-            Loading order details...
-          </p>
-        </div>
+      <main className="flex min-h-screen items-center justify-center bg-orange-50">
+        <p className="text-gray-500">
+          Loading order...
+        </p>
       </main>
     );
   }
 
-  if (error) {
+  if (error && !order) {
     return (
-      <main className="min-h-screen bg-orange-50">
-        <div className="mx-auto max-w-5xl px-6 py-16">
-          <div className="rounded-2xl bg-red-50 p-6 text-red-600">
+      <main className="flex min-h-screen items-center justify-center bg-orange-50 px-6">
+        <div className="rounded-2xl bg-white p-8 text-center shadow">
+          <p className="text-red-600">
             {error}
-          </div>
+          </p>
 
           <button
             onClick={() => router.push("/orders")}
-            className="mt-6 rounded-xl bg-orange-600 px-6 py-3 font-semibold text-white hover:bg-orange-700"
+            className="mt-5 rounded-xl bg-orange-600 px-6 py-3 font-semibold text-white"
           >
             Back to My Orders
           </button>
@@ -142,214 +189,227 @@ export default function OrderDetailsPage() {
     return null;
   }
 
-  const currentStatusIndex = getCurrentStatusIndex();
+  const paymentMethod =
+    order.payment_method === "cod"
+      ? "Cash on Delivery"
+      : order.payment_method;
+
+  const paymentStatus =
+    order.payment_status === "pending"
+      ? "Pending"
+      : order.payment_status === "paid"
+        ? "Paid"
+        : order.payment_status;
 
   return (
     <main className="min-h-screen bg-orange-50">
-
-      <nav className="flex items-center justify-between bg-white px-8 py-5 shadow-sm">
-
+      <header className="flex items-center justify-between bg-white px-8 py-6 shadow-sm">
         <div>
-          <button
-            onClick={() => router.push("/")}
-            className="text-2xl font-bold text-orange-600"
-          >
+          <h1 className="text-2xl font-bold text-orange-600">
             PratyaBites
-          </button>
+          </h1>
 
           <p className="text-xs text-gray-500">
             Pratya&apos;s Promise, Every Bite.
           </p>
         </div>
 
-        <div className="flex items-center gap-4">
-
-          <button
-            onClick={() => router.push("/menu")}
-            className="font-medium text-gray-700 hover:text-orange-600"
-          >
-            Menu
-          </button>
-
-          <button
-            onClick={() => router.push("/cart")}
-            className="font-medium text-gray-700 hover:text-orange-600"
-          >
-            🛒 Cart
-          </button>
-
-        </div>
-
-      </nav>
-
-      <section className="mx-auto max-w-5xl px-6 py-12">
-
         <button
           onClick={() => router.push("/orders")}
-          className="mb-6 font-medium text-orange-600 hover:text-orange-700"
+          className="font-medium text-orange-600 hover:text-orange-700"
         >
           ← Back to My Orders
         </button>
+      </header>
 
-        <div className="rounded-2xl bg-white shadow-sm">
-
-          <div className="flex flex-col justify-between gap-4 border-b p-6 sm:flex-row sm:items-center">
-
+      <section className="mx-auto max-w-5xl px-6 py-12">
+        <div className="rounded-2xl bg-white p-8 shadow-sm">
+          <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
-              <h1 className="text-2xl font-bold">
+              <h2 className="text-3xl font-bold">
                 Order #{order.id}
-              </h1>
+              </h2>
 
               <p className="mt-2 text-sm text-gray-500">
-                {formatDate(order.created_at)}
+                {new Date(
+                  order.created_at
+                ).toLocaleString()}
               </p>
             </div>
 
-            <span className="w-fit rounded-full bg-orange-100 px-4 py-2 text-sm font-semibold capitalize text-orange-700">
-              {order.status.replaceAll("_", " ")}
+            <span
+              className={`w-fit rounded-full px-4 py-2 text-sm font-semibold ${
+                normalizedStatus === "cancelled"
+                  ? "bg-red-100 text-red-700"
+                  : normalizedStatus === "delivered"
+                    ? "bg-green-100 text-green-700"
+                    : "bg-orange-100 text-orange-700"
+              }`}
+            >
+              {normalizedStatus
+                .replaceAll("_", " ")
+                .replace(
+                  /\b\w/g,
+                  (char) => char.toUpperCase()
+                )}
             </span>
-
           </div>
 
-          <div className="border-b p-6">
+          {normalizedStatus === "cancelled" ? (
+            <div className="mt-8 rounded-xl bg-red-50 p-5">
+              <h3 className="font-bold text-red-700">
+                Order Cancelled
+              </h3>
 
-            <h2 className="mb-6 text-xl font-bold">
-              Order Status
-            </h2>
-
-            <div className="space-y-0">
-
-              {statuses.map((status, index) => {
-
-                const completed =
-                  index <= currentStatusIndex;
-
-                const current =
-                  index === currentStatusIndex;
-
-                return (
-                  <div
-                    key={status}
-                    className="flex items-start"
-                  >
-
-                    <div className="flex flex-col items-center">
-
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-full font-semibold ${
-                          completed
-                            ? "bg-orange-600 text-white"
-                            : "bg-gray-200 text-gray-500"
-                        }`}
-                      >
-                        {completed ? "✓" : index + 1}
-                      </div>
-
-                      {index < statuses.length - 1 && (
-                        <div
-                          className={`h-12 w-0.5 ${
-                            index < currentStatusIndex
-                              ? "bg-orange-600"
-                              : "bg-gray-200"
-                          }`}
-                        />
-                      )}
-
-                    </div>
-
-                    <div className="ml-4 pb-6">
-
-                      <p
-                        className={`font-semibold ${
-                          completed
-                            ? "text-orange-600"
-                            : "text-gray-500"
-                        }`}
-                      >
-                        {statusLabels[status]}
-                      </p>
-
-                      {current && (
-                        <p className="mt-1 text-sm text-gray-500">
-                          Current order status
-                        </p>
-                      )}
-
-                    </div>
-
-                  </div>
-                );
-              })}
-
+              <p className="mt-1 text-sm text-red-600">
+                This order has been cancelled.
+              </p>
             </div>
+          ) : (
+            <div className="mt-10">
+              <div className="flex items-start justify-between">
+                {statusSteps.map(
+                  (step, index) => {
+                    const completed =
+                      currentStatusIndex >= index;
 
-          </div>
+                    return (
+                      <div
+                        key={step.key}
+                        className="flex flex-1 flex-col items-center"
+                      >
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-full font-bold ${
+                            completed
+                              ? "bg-orange-600 text-white"
+                              : "bg-gray-200 text-gray-500"
+                          }`}
+                        >
+                          {index + 1}
+                        </div>
 
-          <div className="border-b p-6">
+                        <p
+                          className={`mt-2 text-center text-xs font-semibold ${
+                            completed
+                              ? "text-orange-600"
+                              : "text-gray-400"
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                      </div>
+                    );
+                  }
+                )}
+              </div>
+            </div>
+          )}
 
-            <h2 className="mb-5 text-xl font-bold">
+          <div className="mt-10 border-t pt-8">
+            <h3 className="text-xl font-bold">
               Ordered Items
-            </h2>
+            </h3>
 
-            <div className="space-y-5">
-
+            <div className="mt-5 space-y-4">
               {order.items.map((item) => (
-
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-4"
+                  className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 p-4"
                 >
-
                   <div>
-                    <h3 className="font-semibold">
+                    <h4 className="font-semibold">
                       {item.product_name}
-                    </h3>
+                    </h4>
 
                     <p className="mt-1 text-sm text-gray-500">
-                      ₹{item.price} × {item.quantity}
+                      ₹{item.price} ×{" "}
+                      {item.quantity}
                     </p>
                   </div>
 
-                  <p className="font-semibold">
+                  <p className="font-bold">
                     ₹{item.subtotal}
                   </p>
-
                 </div>
-
               ))}
-
             </div>
 
+            <div className="mt-6 flex justify-between border-t pt-5 text-lg font-bold">
+              <span>Total Amount</span>
+
+              <span className="text-orange-600">
+                ₹{order.total_amount}
+              </span>
+            </div>
           </div>
 
-          <div className="border-b bg-gray-50 p-6">
+          <div className="mt-8 rounded-xl bg-orange-50 p-5">
+            <h3 className="text-lg font-bold">
+              Payment
+            </h3>
 
-            <h2 className="text-xl font-bold">
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-sm text-gray-500">
+                  Payment Method
+                </p>
+
+                <p className="mt-1 font-bold text-gray-800">
+                  💵 {paymentMethod}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-500">
+                  Payment Status
+                </p>
+
+                <p className="mt-1 font-bold text-orange-600">
+                  {paymentStatus}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <h3 className="text-xl font-bold">
               Delivery Address
-            </h2>
+            </h3>
 
-            <p className="mt-2 text-gray-600">
-              {order.delivery_address}
-            </p>
-
+            <div className="mt-4 rounded-xl bg-gray-50 p-5">
+              <p className="whitespace-pre-line leading-7 text-gray-700">
+                {order.delivery_address}
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between p-6">
+          {error && (
+            <div className="mt-6 rounded-xl bg-red-50 p-4 text-sm text-red-600">
+              {error}
+            </div>
+          )}
 
-            <p className="text-lg font-semibold">
-              Total Amount
-            </p>
+          {(normalizedStatus === "pending" ||
+            normalizedStatus === "confirmed") && (
+            <div className="mt-8">
+              <button
+                onClick={handleCancelOrder}
+                disabled={cancelling}
+                className="rounded-xl bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelling
+                  ? "Cancelling..."
+                  : "Cancel Order"}
+              </button>
 
-            <p className="text-2xl font-bold text-orange-600">
-              ₹{order.total_amount}
-            </p>
-
-          </div>
-
+              <p className="mt-2 text-sm text-gray-500">
+                You can cancel this order while it
+                is pending or confirmed.
+              </p>
+            </div>
+          )}
         </div>
-
       </section>
-
     </main>
   );
 }
