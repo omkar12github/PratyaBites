@@ -6,6 +6,7 @@ from .views import (
     RegisterView,
     LoginView,
     ProfileView,
+    ChangePasswordView,
     AddressView,
     AddressDetailView,
     AdminCustomerView,
@@ -32,6 +33,11 @@ urlpatterns = [
         "profile/",
         ProfileView.as_view(),
         name="profile"
+    ),
+    path(
+        "change-password/",
+        ChangePasswordView.as_view(),
+        name="change-password"
     ),
     path(
         "addresses/",

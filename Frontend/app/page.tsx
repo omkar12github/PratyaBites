@@ -1,29 +1,91 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+
 export default function Home() {
+  const router = useRouter();
+
   return (
     <main className="min-h-screen bg-white text-gray-900">
 
       {/* Navbar */}
       <nav className="flex items-center justify-between px-8 py-5 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-orange-600">
-            PratyaBites
-          </h1>
-          <p className="text-xs text-gray-500">
-            Pratya&apos;s Promise, Every Bite.
-          </p>
+          <button
+            onClick={() => router.push("/")}
+            className="text-left"
+          >
+            <h1 className="text-2xl font-bold text-orange-600">
+              PratyaBites
+            </h1>
+
+            <p className="text-xs text-gray-500">
+              Pratya&apos;s Promise, Every Bite.
+            </p>
+          </button>
         </div>
 
         <div className="hidden gap-8 md:flex">
-          <a href="#" className="hover:text-orange-600">Home</a>
-          <a href="#" className="hover:text-orange-600">Menu</a>
-          <a href="#" className="hover:text-orange-600">Offers</a>
-          <a href="#" className="hover:text-orange-600">About</a>
-          <a href="#" className="hover:text-orange-600">Contact</a>
+          <button
+            onClick={() => router.push("/")}
+            className="hover:text-orange-600"
+          >
+            Home
+          </button>
+
+          <button
+            onClick={() => router.push("/menu")}
+            className="hover:text-orange-600"
+          >
+            Menu
+          </button>
+
+          <button
+            onClick={() => router.push("/menu")}
+            className="hover:text-orange-600"
+          >
+            Offers
+          </button>
+
+          <button
+            onClick={() =>
+              document
+                .getElementById("about")
+                ?.scrollIntoView({
+                  behavior: "smooth",
+                })
+            }
+            className="hover:text-orange-600"
+          >
+            About
+          </button>
+
+          <button
+            onClick={() =>
+              document
+                .getElementById("contact")
+                ?.scrollIntoView({
+                  behavior: "smooth",
+                })
+            }
+            className="hover:text-orange-600"
+          >
+            Contact
+          </button>
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="text-gray-700">🛒 Cart</button>
-          <button className="rounded-full bg-orange-600 px-5 py-2 text-white hover:bg-orange-700">
+          <button
+            onClick={() => router.push("/cart")}
+            className="text-gray-700 hover:text-orange-600"
+          >
+            🛒 Cart
+          </button>
+
+          <button
+            onClick={() => router.push("/login")}
+            className="rounded-full bg-orange-600 px-5 py-2 text-white hover:bg-orange-700"
+          >
             Login
           </button>
         </div>
@@ -41,20 +103,28 @@ export default function Home() {
             <h2 className="text-5xl font-extrabold leading-tight md:text-6xl">
               Fresh Food.
               <br />
-              <span className="text-orange-600">Happy Bites.</span>
+              <span className="text-orange-600">
+                Happy Bites.
+              </span>
             </h2>
 
             <p className="mt-6 max-w-lg text-lg text-gray-600">
-              Delicious vegetarian fast food prepared fresh and delivered
-              straight to your doorstep.
+              Delicious vegetarian fast food prepared fresh and
+              delivered straight to your doorstep.
             </p>
 
             <div className="mt-8 flex gap-4">
-              <button className="rounded-full bg-orange-600 px-7 py-3 font-semibold text-white hover:bg-orange-700">
+              <button
+                onClick={() => router.push("/menu")}
+                className="rounded-full bg-orange-600 px-7 py-3 font-semibold text-white hover:bg-orange-700"
+              >
                 Order Now
               </button>
 
-              <button className="rounded-full border border-orange-600 px-7 py-3 font-semibold text-orange-600 hover:bg-orange-100">
+              <button
+                onClick={() => router.push("/menu")}
+                className="rounded-full border border-orange-600 px-7 py-3 font-semibold text-orange-600 hover:bg-orange-100"
+              >
                 Explore Menu
               </button>
             </div>
@@ -70,6 +140,7 @@ export default function Home() {
       {/* Categories */}
       <section className="px-8 py-16">
         <div className="mx-auto max-w-7xl">
+
           <h2 className="text-center text-3xl font-bold">
             Explore Our Menu
           </h2>
@@ -90,13 +161,19 @@ export default function Home() {
               ["🌯", "Wraps"],
               ["🥤", "Drinks"],
             ].map(([icon, name]) => (
-              <div
+              <button
                 key={name}
+                onClick={() => router.push("/menu")}
                 className="cursor-pointer rounded-2xl border p-5 text-center transition hover:-translate-y-1 hover:border-orange-500 hover:shadow-md"
               >
-                <div className="text-4xl">{icon}</div>
-                <p className="mt-3 font-semibold">{name}</p>
-              </div>
+                <div className="text-4xl">
+                  {icon}
+                </div>
+
+                <p className="mt-3 font-semibold">
+                  {name}
+                </p>
+              </button>
             ))}
 
           </div>
@@ -112,12 +189,16 @@ export default function Home() {
               <p className="font-semibold text-orange-600">
                 ⭐ Our Favorites
               </p>
+
               <h2 className="mt-2 text-3xl font-bold">
                 PratyaBites Specials
               </h2>
             </div>
 
-            <button className="hidden font-semibold text-orange-600 md:block">
+            <button
+              onClick={() => router.push("/menu")}
+              className="hidden font-semibold text-orange-600 md:block"
+            >
               View Full Menu →
             </button>
           </div>
@@ -139,8 +220,11 @@ export default function Home() {
                 </div>
 
                 <div className="p-5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold">{name}</h3>
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-bold">
+                      {name}
+                    </h3>
+
                     <span className="font-bold text-orange-600">
                       {price}
                     </span>
@@ -150,7 +234,10 @@ export default function Home() {
                     Freshly prepared and delicious.
                   </p>
 
-                  <button className="mt-5 w-full rounded-xl bg-orange-600 py-2.5 font-semibold text-white hover:bg-orange-700">
+                  <button
+                    onClick={() => router.push("/menu")}
+                    className="mt-5 w-full rounded-xl bg-orange-600 py-2.5 font-semibold text-white hover:bg-orange-700"
+                  >
                     Add to Cart
                   </button>
                 </div>
@@ -162,7 +249,10 @@ export default function Home() {
       </section>
 
       {/* Why Choose Us */}
-      <section className="px-8 py-16">
+      <section
+        id="about"
+        className="px-8 py-16"
+      >
         <div className="mx-auto max-w-7xl">
 
           <h2 className="text-center text-3xl font-bold">
@@ -172,17 +262,39 @@ export default function Home() {
           <div className="mt-10 grid gap-6 md:grid-cols-4">
 
             {[
-              ["🌱", "100% Pure Veg", "Every dish is completely vegetarian."],
-              ["🥬", "Fresh Ingredients", "Fresh ingredients prepared with care."],
-              ["🚀", "Fast Delivery", "Hot and fresh food delivered quickly."],
-              ["❤️", "Made With Care", "Quality and taste in every bite."],
+              [
+                "🌱",
+                "100% Pure Veg",
+                "Every dish is completely vegetarian.",
+              ],
+              [
+                "🥬",
+                "Fresh Ingredients",
+                "Fresh ingredients prepared with care.",
+              ],
+              [
+                "🚀",
+                "Fast Delivery",
+                "Hot and fresh food delivered quickly.",
+              ],
+              [
+                "❤️",
+                "Made With Care",
+                "Quality and taste in every bite.",
+              ],
             ].map(([icon, title, description]) => (
               <div
                 key={title}
                 className="rounded-2xl border p-7 text-center"
               >
-                <div className="text-4xl">{icon}</div>
-                <h3 className="mt-4 font-bold">{title}</h3>
+                <div className="text-4xl">
+                  {icon}
+                </div>
+
+                <h3 className="mt-4 font-bold">
+                  {title}
+                </h3>
+
                 <p className="mt-2 text-sm text-gray-500">
                   {description}
                 </p>
@@ -194,40 +306,94 @@ export default function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-950 px-8 py-12 text-white">
+      <footer
+        id="contact"
+        className="bg-gray-950 px-8 py-12 text-white"
+      >
         <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-4">
 
           <div>
             <h2 className="text-2xl font-bold text-orange-500">
               PratyaBites
             </h2>
+
             <p className="mt-3 text-sm text-gray-400">
               Pratya&apos;s Promise, Every Bite.
             </p>
           </div>
 
           <div>
-            <h3 className="font-semibold">Quick Links</h3>
+            <h3 className="font-semibold">
+              Quick Links
+            </h3>
+
             <div className="mt-4 space-y-2 text-sm text-gray-400">
-              <p>Home</p>
-              <p>Menu</p>
-              <p>Offers</p>
-              <p>About Us</p>
+              <button
+                onClick={() => router.push("/")}
+                className="block hover:text-white"
+              >
+                Home
+              </button>
+
+              <button
+                onClick={() => router.push("/menu")}
+                className="block hover:text-white"
+              >
+                Menu
+              </button>
+
+              <button
+                onClick={() => router.push("/menu")}
+                className="block hover:text-white"
+              >
+                Offers
+              </button>
+
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("about")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                    })
+                }
+                className="block hover:text-white"
+              >
+                About Us
+              </button>
             </div>
           </div>
 
           <div>
-            <h3 className="font-semibold">Support</h3>
+            <h3 className="font-semibold">
+              Support
+            </h3>
+
             <div className="mt-4 space-y-2 text-sm text-gray-400">
-              <p>Contact Us</p>
+              <button
+                onClick={() =>
+                  document
+                    .getElementById("contact")
+                    ?.scrollIntoView({
+                      behavior: "smooth",
+                    })
+                }
+                className="block hover:text-white"
+              >
+                Contact Us
+              </button>
+
               <p>FAQ</p>
               <p>Privacy Policy</p>
-              <p>Terms & Conditions</p>
+              <p>Terms &amp; Conditions</p>
             </div>
           </div>
 
           <div>
-            <h3 className="font-semibold">Follow Us</h3>
+            <h3 className="font-semibold">
+              Follow Us
+            </h3>
+
             <div className="mt-4 space-y-2 text-sm text-gray-400">
               <p>Instagram</p>
               <p>Facebook</p>

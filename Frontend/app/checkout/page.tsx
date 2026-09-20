@@ -36,6 +36,12 @@ type Address = {
   is_default: boolean;
 };
 
+type User = {
+  username?: string;
+  email?: string;
+  phone?: string;
+};
+
 const emptyAddress = {
   full_name: "",
   phone: "",
@@ -49,6 +55,7 @@ const emptyAddress = {
 export default function CheckoutPage() {
   const router = useRouter();
 
+  const [user, setUser] = useState<User | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] =
@@ -75,6 +82,18 @@ export default function CheckoutPage() {
   const [success, setSuccess] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
   const [onlinePayment, setOnlinePayment] = useState(false);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error("Unable to read user:", error);
+      }
+    }
+  }, []);
 
   const formatAddress = (item: Address) => {
     return `${item.full_name}
@@ -638,17 +657,13 @@ ${item.city}, ${item.state} - ${item.pincode}`;
 
     const userData = localStorage.getItem("user");
 
-    let user: {
-      username?: string;
-      email?: string;
-      phone?: string;
-    } = {};
+    let storedUser: User = {};
 
     if (userData) {
       try {
-        user = JSON.parse(userData);
+        storedUser = JSON.parse(userData);
       } catch {
-        user = {};
+        storedUser = {};
       }
     }
 
@@ -661,9 +676,9 @@ ${item.city}, ${item.state} - ${item.pincode}`;
       order_id: createData.razorpay_order_id,
 
       prefill: {
-        name: user.username || "",
-        email: user.email || "",
-        contact: user.phone || "",
+        name: storedUser.username || "",
+        email: storedUser.email || "",
+        contact: storedUser.phone || "",
       },
 
       notes: {
@@ -850,97 +865,21 @@ ${item.city}, ${item.state} - ${item.pincode}`;
     }
   };
 
-  if (loading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-orange-50">
-        <div className="text-center">
-          <div className="text-5xl">🍽️</div>
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("user");
 
-          <p className="mt-4 text-gray-500">
-            Loading checkout...
-          </p>
-        </div>
-      </main>
-    );
-  }
+    router.push("/login");
+  };
 
-  if (success) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-orange-50 px-6">
-        <div className="w-full max-w-lg rounded-2xl bg-white p-10 text-center shadow-lg">
-          <div className="text-6xl">🎉</div>
-
-          <h1 className="mt-5 text-3xl font-bold">
-            Order Placed Successfully!
-          </h1>
-
-          <p className="mt-3 text-gray-500">
-            Thank you for ordering from PratyaBites.
-          </p>
-
-          {orderId && (
-            <div className="mt-6 rounded-xl bg-orange-50 p-4">
-              <p className="text-sm text-gray-500">
-                Your Order
-              </p>
-
-              <p className="mt-1 text-2xl font-bold text-orange-600">
-                #{orderId}
-              </p>
-            </div>
-          )}
-
-          <div className="mt-4 rounded-xl bg-green-50 p-4">
-            <p className="font-semibold text-green-700">
-              Payment Method
-            </p>
-
-            <p className="mt-1 text-green-600">
-              {onlinePayment
-                ? "Online Payment"
-                : "Cash on Delivery"}
-            </p>
-
-            {onlinePayment && (
-              <p className="mt-1 text-sm text-green-600">
-                Payment verified successfully.
-              </p>
-            )}
-          </div>
-
-          <div className="mt-8 flex flex-col gap-3">
-            <button
-              onClick={() =>
-                router.push(`/orders/${orderId}`)
-              }
-              className="rounded-xl bg-orange-600 px-7 py-3 font-semibold text-white transition hover:bg-orange-700"
-            >
-              View Order
-            </button>
-
-            <button
-              onClick={() => router.push("/orders")}
-              className="rounded-xl border border-gray-300 px-7 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              My Orders
-            </button>
-
-            <button
-              onClick={() => router.push("/menu")}
-              className="rounded-xl border border-orange-600 px-7 py-3 font-semibold text-orange-600 transition hover:bg-orange-50"
-            >
-              Continue Shopping
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (!cart || cart.items.length === 0) {
-    return (
-      <main className="min-h-screen bg-orange-50">
-        <header className="bg-white px-8 py-6 shadow-sm">
+  const Navigation = () => (
+    <nav className="sticky top-0 z-40 border-b border-gray-100 bg-white/95 px-4 py-4 shadow-sm backdrop-blur sm:px-8">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
+        <button
+          onClick={() => router.push("/")}
+          className="text-left"
+        >
           <h1 className="text-2xl font-bold text-orange-600">
             PratyaBites
           </h1>
@@ -948,7 +887,189 @@ ${item.city}, ${item.state} - ${item.pincode}`;
           <p className="text-xs text-gray-500">
             Pratya&apos;s Promise, Every Bite.
           </p>
-        </header>
+        </button>
+
+        <div className="hidden items-center gap-8 md:flex">
+          <button
+            onClick={() => router.push("/")}
+            className="hover:text-orange-600"
+          >
+            Home
+          </button>
+
+          <button
+            onClick={() => router.push("/menu")}
+            className="hover:text-orange-600"
+          >
+            Menu
+          </button>
+
+          <button
+            onClick={() => router.push("/cart")}
+            className="hover:text-orange-600"
+          >
+            Cart
+          </button>
+
+          <button
+            onClick={() => router.push("/orders")}
+            className="hover:text-orange-600"
+          >
+            My Orders
+          </button>
+
+          <button
+            onClick={() => router.push("/profile")}
+            className="hover:text-orange-600"
+          >
+            Profile
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button
+            onClick={() => router.push("/cart")}
+            className="rounded-lg px-2 py-2 font-medium hover:bg-orange-50 hover:text-orange-600 sm:px-3"
+          >
+            🛒
+            <span className="hidden sm:inline">
+              {" "}Cart
+            </span>
+          </button>
+
+          <button
+            onClick={() => router.push("/orders")}
+            className="hidden rounded-lg px-3 py-2 font-medium hover:bg-orange-50 hover:text-orange-600 sm:block"
+          >
+            📦 My Orders
+          </button>
+
+          <button
+            onClick={() => router.push("/profile")}
+            className="rounded-lg px-3 py-2 font-medium hover:bg-orange-50 hover:text-orange-600"
+          >
+            👤
+            <span className="hidden sm:inline">
+              {" "}Profile
+            </span>
+          </button>
+
+          {user && (
+            <span className="hidden font-medium text-gray-700 lg:block">
+              Hi, {user.username}
+            </span>
+          )}
+
+          <button
+            onClick={handleLogout}
+            className="rounded-full bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-800 sm:px-5"
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-orange-50">
+        <Navigation />
+
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="text-center">
+            <div className="text-5xl">🍽️</div>
+
+            <p className="mt-4 text-gray-500">
+              Loading checkout...
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (success) {
+    return (
+      <main className="min-h-screen bg-orange-50">
+        <Navigation />
+
+        <section className="flex min-h-[80vh] items-center justify-center px-6 py-12">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-10 text-center shadow-lg">
+            <div className="text-6xl">🎉</div>
+
+            <h1 className="mt-5 text-3xl font-bold">
+              Order Placed Successfully!
+            </h1>
+
+            <p className="mt-3 text-gray-500">
+              Thank you for ordering from PratyaBites.
+            </p>
+
+            {orderId && (
+              <div className="mt-6 rounded-xl bg-orange-50 p-4">
+                <p className="text-sm text-gray-500">
+                  Your Order
+                </p>
+
+                <p className="mt-1 text-2xl font-bold text-orange-600">
+                  #{orderId}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-4 rounded-xl bg-green-50 p-4">
+              <p className="font-semibold text-green-700">
+                Payment Method
+              </p>
+
+              <p className="mt-1 text-green-600">
+                {onlinePayment
+                  ? "Online Payment"
+                  : "Cash on Delivery"}
+              </p>
+
+              {onlinePayment && (
+                <p className="mt-1 text-sm text-green-600">
+                  Payment verified successfully.
+                </p>
+              )}
+            </div>
+
+            <div className="mt-8 flex flex-col gap-3">
+              <button
+                onClick={() =>
+                  router.push(`/orders/${orderId}`)
+                }
+                className="rounded-xl bg-orange-600 px-7 py-3 font-semibold text-white transition hover:bg-orange-700"
+              >
+                View Order
+              </button>
+
+              <button
+                onClick={() => router.push("/orders")}
+                className="rounded-xl border border-gray-300 px-7 py-3 font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                My Orders
+              </button>
+
+              <button
+                onClick={() => router.push("/menu")}
+                className="rounded-xl border border-orange-600 px-7 py-3 font-semibold text-orange-600 transition hover:bg-orange-50"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!cart || cart.items.length === 0) {
+    return (
+      <main className="min-h-screen bg-orange-50">
+        <Navigation />
 
         <section className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
           <div className="text-6xl">🛒</div>
@@ -974,27 +1095,17 @@ ${item.city}, ${item.state} - ${item.pincode}`;
 
   return (
     <main className="min-h-screen bg-orange-50">
-      <header className="flex items-center justify-between bg-white px-8 py-6 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-orange-600">
-            PratyaBites
-          </h1>
-
-          <p className="text-xs text-gray-500">
-            Pratya&apos;s Promise, Every Bite.
-          </p>
-        </div>
-
-        <button
-          onClick={() => router.push("/cart")}
-          className="font-medium text-orange-600 transition hover:text-orange-700"
-        >
-          ← Back to Cart
-        </button>
-      </header>
+      <Navigation />
 
       <section className="mx-auto max-w-6xl px-6 py-12">
         <div>
+          <button
+            onClick={() => router.push("/cart")}
+            className="mb-5 text-sm font-medium text-orange-600 hover:underline"
+          >
+            ← Back to Cart
+          </button>
+
           <h2 className="text-3xl font-bold">
             Checkout
           </h2>
@@ -1492,7 +1603,7 @@ ${item.city}, ${item.state} - ${item.pincode}`;
             )}
           </div>
 
-          <div className="h-fit rounded-2xl bg-white p-6 shadow-sm lg:sticky lg:top-6">
+          <div className="h-fit rounded-2xl bg-white p-6 shadow-sm lg:sticky lg:top-28">
             <h3 className="text-xl font-bold">
               Order Summary
             </h3>

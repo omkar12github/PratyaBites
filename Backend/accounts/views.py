@@ -1,4 +1,6 @@
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from rest_framework import status
@@ -135,9 +137,21 @@ class ProfileView(APIView):
         phone = request.data.get("phone")
 
         if email is not None:
+            email = email.strip()
+
+            if not email:
+                return Response(
+                    {
+                        "error": "Email cannot be empty."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             if User.objects.filter(
                 email=email
-            ).exclude(id=user.id).exists():
+            ).exclude(
+                id=user.id
+            ).exists():
                 return Response(
                     {
                         "error": "Email already exists."
@@ -148,7 +162,7 @@ class ProfileView(APIView):
             user.email = email
 
         if phone is not None:
-            user.phone = phone
+            user.phone = phone.strip()
 
         user.save()
 
@@ -162,6 +176,103 @@ class ProfileView(APIView):
                     "phone": user.phone,
                 }
             }
+        )
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current_password = request.data.get(
+            "current_password"
+        )
+        new_password = request.data.get(
+            "new_password"
+        )
+        confirm_password = request.data.get(
+            "confirm_password"
+        )
+
+        if not current_password:
+            return Response(
+                {
+                    "error": "Current password is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not new_password:
+            return Response(
+                {
+                    "error": "New password is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not confirm_password:
+            return Response(
+                {
+                    "error": "Confirm password is required."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not authenticate(
+            username=request.user.username,
+            password=current_password
+        ):
+            return Response(
+                {
+                    "error": "Current password is incorrect."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {
+                    "error": "New passwords do not match."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if current_password == new_password:
+            return Response(
+                {
+                    "error": (
+                        "New password must be different "
+                        "from the current password."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            validate_password(
+                new_password,
+                request.user
+            )
+        except ValidationError as error:
+            return Response(
+                {
+                    "error": error.messages[0]
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request.user.set_password(
+            new_password
+        )
+
+        request.user.save(
+            update_fields=["password"]
+        )
+
+        return Response(
+            {
+                "message": "Password changed successfully."
+            },
+            status=status.HTTP_200_OK
         )
 
 
@@ -304,10 +415,20 @@ class AddressDetailView(APIView):
 
         for field in fields:
             if field in request.data:
+                value = request.data.get(field)
+
+                if not value:
+                    return Response(
+                        {
+                            "error": f"{field} cannot be empty."
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
                 setattr(
                     address,
                     field,
-                    request.data.get(field)
+                    value
                 )
 
         if request.data.get(
